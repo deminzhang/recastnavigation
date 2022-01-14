@@ -681,16 +681,14 @@ void NavMeshTesterTool::recalc()
 {
 	if (!m_navMesh)
 		return;
-	
+	//TEST 寻路起始点
+	m_startRef = 0;
+	m_endRef = 0;
 	if (m_sposSet)
 		m_navQuery->findNearestPoly(m_spos, m_polyPickExt, &m_filter, &m_startRef, 0);
-	else
-		m_startRef = 0;
 	
 	if (m_eposSet)
 		m_navQuery->findNearestPoly(m_epos, m_polyPickExt, &m_filter, &m_endRef, 0);
-	else
-		m_endRef = 0;
 	
 	m_pathFindStatus = DT_FAILURE;
 	
@@ -1377,17 +1375,20 @@ void NavMeshTesterTool::handleRender()
 void NavMeshTesterTool::handleRenderOverlay(double* proj, double* model, int* view)
 {
 	GLdouble x, y, z;
+	char str[64];
 	
 	// Draw start and end point labels
 	if (m_sposSet && gluProject((GLdouble)m_spos[0], (GLdouble)m_spos[1], (GLdouble)m_spos[2],
 								model, proj, view, &x, &y, &z))
 	{
-		imguiDrawText((int)x, (int)(y-25), IMGUI_ALIGN_CENTER, "Start", imguiRGBA(0,0,0,220));
+		sprintf(str, "Start(%.2f, %.2f, %.2f)", m_spos[0], m_spos[1], m_spos[2]);
+		imguiDrawText((int)x, (int)(y-25), IMGUI_ALIGN_CENTER, str, imguiRGBA(0,0,0,220));
 	}
 	if (m_eposSet && gluProject((GLdouble)m_epos[0], (GLdouble)m_epos[1], (GLdouble)m_epos[2],
 								model, proj, view, &x, &y, &z))
 	{
-		imguiDrawText((int)x, (int)(y-25), IMGUI_ALIGN_CENTER, "End", imguiRGBA(0,0,0,220));
+		sprintf(str, "End(%.2f, %.2f, %.2f)", m_epos[0], m_epos[1], m_epos[2]);
+		imguiDrawText((int)x, (int)(y-25), IMGUI_ALIGN_CENTER, str, imguiRGBA(0,0,0,220));
 	}
 	
 	// Tool help
