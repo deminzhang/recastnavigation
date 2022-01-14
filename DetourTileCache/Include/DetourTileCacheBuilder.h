@@ -48,6 +48,7 @@ struct dtTileCacheLayer
 	unsigned char* areas;
 	unsigned char* cons;
 	unsigned char* regs;
+	unsigned int* obstacle;
 };
 
 struct dtTileCacheContour
@@ -56,6 +57,7 @@ struct dtTileCacheContour
 	unsigned char* verts;
 	unsigned char reg;
 	unsigned char area;
+	unsigned int obstacle;
 };
 
 struct dtTileCacheContourSet
@@ -73,6 +75,7 @@ struct dtTileCachePolyMesh
 	unsigned short* polys;	///< Polygons of the mesh, nvp*2 elements per polygon.
 	unsigned short* flags;	///< Per polygon flags.
 	unsigned char* areas;	///< Area ID of polygons.
+	unsigned int* obstacle;	///< 
 };
 
 
@@ -125,13 +128,15 @@ dtTileCachePolyMesh* dtAllocTileCachePolyMesh(dtTileCacheAlloc* alloc);
 void dtFreeTileCachePolyMesh(dtTileCacheAlloc* alloc, dtTileCachePolyMesh* lmesh);
 
 dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-							const float* pos, const float radius, const float height, const unsigned char areaId);
+							const float* pos, const float radius, const float height,
+	const unsigned char areaId, const unsigned int obRef=0);
 
 dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-					   const float* bmin, const float* bmax, const unsigned char areaId);
+					   const float* bmin, const float* bmax, const unsigned char areaId, const unsigned int obRef=0);
 
 dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-					   const float* center, const float* halfExtents, const float* rotAux, const unsigned char areaId);
+					   const float* center, const float* halfExtents, const float* rotAux, 
+	const unsigned char areaId, const unsigned int obRef=0);
 
 dtStatus dtBuildTileCacheRegions(dtTileCacheAlloc* alloc,
 								 dtTileCacheLayer& layer,

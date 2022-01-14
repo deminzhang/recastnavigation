@@ -66,8 +66,8 @@ class CrowdToolState : public SampleToolState
 	dtCrowdAgentDebugInfo m_agentDebug;
 	dtObstacleAvoidanceDebugData* m_vod;
 	
-	static const int AGENT_MAX_TRAIL = 64;
-	static const int MAX_AGENTS = 128;
+	static const int AGENT_MAX_TRAIL = 16; //最大尾迹点数
+	static const int MAX_AGENTS = 1024; //最大单位数
 	struct AgentTrail
 	{
 		float trail[AGENT_MAX_TRAIL*3];

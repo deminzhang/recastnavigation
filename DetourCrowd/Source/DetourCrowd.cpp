@@ -1063,13 +1063,15 @@ void dtCrowd::update(const float dt, dtCrowdAgentDebugInfo* debug)
 	updateTopologyOptimization(agents, nagents, dt);
 	
 	// Register agents to proximity grid.
-	m_grid->clear();
-	for (int i = 0; i < nagents; ++i)
-	{
-		dtCrowdAgent* ag = agents[i];
-		const float* p = ag->npos;
-		const float r = ag->params.radius;
-		m_grid->addItem((unsigned short)i, p[0]-r, p[2]-r, p[0]+r, p[2]+r);
+	if (m_grid) {
+		m_grid->clear();
+		for (int i = 0; i < nagents; ++i)
+		{
+			dtCrowdAgent* ag = agents[i];
+			const float* p = ag->npos;
+			const float r = ag->params.radius;
+			m_grid->addItem((unsigned short)i, p[0] - r, p[2] - r, p[0] + r, p[2] + r);
+		}
 	}
 	
 	// Get nearby navmesh segments and agents to collide with.

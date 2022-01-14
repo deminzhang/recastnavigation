@@ -60,7 +60,9 @@ protected:
 	int m_maxTiles;
 	int m_maxPolysPerTile;
 	float m_tileSize;
-	
+public:
+	enum ObstacleType m_ObstacleType;
+
 public:
 	Sample_TempObstacles();
 	virtual ~Sample_TempObstacles();

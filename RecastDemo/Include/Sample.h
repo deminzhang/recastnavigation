@@ -112,6 +112,7 @@ protected:
 	float m_agentRadius;
 	float m_agentMaxClimb;
 	float m_agentMaxSlope;
+	float m_agentMaxSpeed;
 	float m_regionMinSize;
 	float m_regionMergeSize;
 	float m_edgeMaxLen;
@@ -167,6 +168,7 @@ public:
 	virtual float getAgentRadius() { return m_agentRadius; }
 	virtual float getAgentHeight() { return m_agentHeight; }
 	virtual float getAgentClimb() { return m_agentMaxClimb; }
+	virtual float getAgentMaxSpeed() { return m_agentMaxSpeed; }
 	
 	unsigned char getNavMeshDrawFlags() const { return m_navMeshDrawFlags; }
 	void setNavMeshDrawFlags(unsigned char flags) { m_navMeshDrawFlags = flags; }

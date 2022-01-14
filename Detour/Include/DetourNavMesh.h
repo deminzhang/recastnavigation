@@ -174,17 +174,23 @@ struct dtPoly
 	/// @note Use the structure's set and get methods to acess this value.
 	unsigned char areaAndtype;
 
+	unsigned int obstacleRef;
+
 	/// Sets the user defined area id. [Limit: < #DT_MAX_AREAS]
 	inline void setArea(unsigned char a) { areaAndtype = (areaAndtype & 0xc0) | (a & 0x3f); }
 
 	/// Sets the polygon type. (See: #dtPolyTypes.)
 	inline void setType(unsigned char t) { areaAndtype = (areaAndtype & 0x3f) | (t << 6); }
 
+	inline void setObstacleRef(unsigned int t) { obstacleRef = t; }
+
 	/// Gets the user defined area id.
 	inline unsigned char getArea() const { return areaAndtype & 0x3f; }
 
 	/// Gets the polygon type. (See: #dtPolyTypes)
 	inline unsigned char getType() const { return areaAndtype >> 6; }
+
+	inline unsigned int getObstacleRef() { return obstacleRef; }
 };
 
 /// Defines the location of detail sub-mesh data within a dtMeshTile.

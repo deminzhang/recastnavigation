@@ -527,7 +527,9 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 	if (m_targetRef && gluProject((GLdouble)m_targetPos[0], (GLdouble)m_targetPos[1], (GLdouble)m_targetPos[2],
 								  model, proj, view, &x, &y, &z))
 	{
-		imguiDrawText((int)x, (int)(y+25), IMGUI_ALIGN_CENTER, "TARGET", imguiRGBA(0,0,0,220));
+		char buf[64];
+		sprintf(buf, "TARGET(%.2f, %.2f, %.2f)", m_targetPos[0], m_targetPos[1], m_targetPos[2]);
+		imguiDrawText((int)x, (int)(y+25), IMGUI_ALIGN_CENTER, buf, imguiRGBA(0,0,0,220));
 	}
 	
 	char label[32];
@@ -576,7 +578,16 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 				if (gluProject((GLdouble)pos[0], (GLdouble)pos[1]+h, (GLdouble)pos[2],
 							   model, proj, view, &x, &y, &z))
 				{
-					snprintf(label, 32, "%d", i);
+					const float* tpos; //TEST»­Ä¿±êµã
+					if (ag->targetState != DT_CROWDAGENT_TARGET_NONE
+						&& (ag->params.updateFlags & DT_CROWD_OPTIMIZE_VIS) && ag->ncorners > 0) {
+						tpos = &ag->cornerVerts[0];
+						snprintf(label, 32, "%d(>%.2f,%.2f,%.2f)", i, tpos[0], tpos[1], tpos[2]);
+					}
+					else {
+						tpos = ag->corridor.getTarget();
+						snprintf(label, 32, "%d", i);
+					}
 					imguiDrawText((int)x, (int)y+15, IMGUI_ALIGN_CENTER, label, imguiRGBA(0,0,0,220));
 				}
 			}			
@@ -647,7 +658,8 @@ void CrowdToolState::addAgent(const float* p)
 	ap.radius = m_sample->getAgentRadius();
 	ap.height = m_sample->getAgentHeight();
 	ap.maxAcceleration = 8.0f;
-	ap.maxSpeed = 3.5f;
+	ap.maxSpeed = m_sample->getAgentMaxSpeed();
+	//ap.maxSpeed = 0.5f;//TEST
 	ap.collisionQueryRange = ap.radius * 12.0f;
 	ap.pathOptimizationRange = ap.radius * 30.0f;
 	ap.updateFlags = 0; 
@@ -824,6 +836,7 @@ void CrowdToolState::updateAgentParams()
 	}	
 }
 
+static float lastTarget[3] = {0};
 void CrowdToolState::updateTick(const float dt)
 {
 	if (!m_sample) return;
@@ -841,10 +854,56 @@ void CrowdToolState::updateTick(const float dt)
 	for (int i = 0; i < crowd->getAgentCount(); ++i)
 	{
 		const dtCrowdAgent* ag = crowd->getAgent(i);
-		AgentTrail* trail = &m_trails[i];
 		if (!ag->active)
 			continue;
-		// Update agent movement trail.
+		if (ag->targetState != DT_CROWDAGENT_TARGET_VALID)
+			continue;
+		//TEST crowdTick
+		int nNode = ag->corridor.getPathCount();
+		//int nNode = ag->ncorners;
+		const float* spos = ag->corridor.getPos();
+		const float* tpos = ag->corridor.getTarget();
+		if ((ag->params.updateFlags & DT_CROWD_OPTIMIZE_VIS) && ag->ncorners > 0)
+			tpos = &ag->cornerVerts[0];
+
+		if (!dtVequal(lastTarget, tpos)) {
+			dtVcopy(lastTarget, tpos);
+		}
+		//if (ag->ncorners <= 1)
+		{
+			const float d = dtVdistSqr(ag->corridor.getPos(), ag->corridor.getTarget());
+			float dis = dtVlen(ag->disp);
+			float dis1 = dtVlen(ag->dvel);
+			float dis2 = dtVlen(ag->nvel);
+			float dis3 = dtVlen(ag->vel);
+			bool dstop = false;
+			if (dis + dis1 + dis2 + dis3 > 0.0f)
+				dstop = true;
+
+			bool stop = false;
+			if (d < 1.0e-4)
+				stop = true;
+			else if (d < 10){
+				if(dis > 0.0f)
+					stop = true;
+				else if (ag->targetReplanTime > 10)
+					stop = true;
+				else
+					stop = false;
+
+			}
+			else if (ag->targetReplanTime > 20)
+				stop = true;
+			else
+				stop = false;
+			
+			if (stop)
+				crowd->resetMoveTarget(i);
+
+		}
+
+		// Update agent movement trail.Î²¼£
+		AgentTrail* trail = &m_trails[i];
 		trail->htrail = (trail->htrail + 1) % AGENT_MAX_TRAIL;
 		dtVcopy(&trail->trail[trail->htrail*3], ag->npos);
 	}

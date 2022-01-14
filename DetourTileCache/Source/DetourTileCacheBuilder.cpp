@@ -92,6 +92,7 @@ void dtFreeTileCachePolyMesh(dtTileCacheAlloc* alloc, dtTileCachePolyMesh* lmesh
 	alloc->free(lmesh->polys);
 	alloc->free(lmesh->flags);
 	alloc->free(lmesh->areas);
+	alloc->free(lmesh->obstacle);
 	alloc->free(lmesh);
 }
 
@@ -152,6 +153,7 @@ inline bool isConnected(const dtTileCacheLayer& layer,
 						const int ia, const int ib, const int walkableClimb)
 {
 	if (layer.areas[ia] != layer.areas[ib]) return false;
+	if (layer.obstacle[ia] != layer.obstacle[ib]) return false;
 	if (dtAbs((int)layer.heights[ia] - (int)layer.heights[ib]) > walkableClimb) return false;
 	return true;
 }
@@ -204,7 +206,8 @@ dtStatus dtBuildTileCacheRegions(dtTileCacheAlloc* alloc,
 		for (int x = 0; x < w; ++x)
 		{
 			const int idx = x + y*w;
-			if (layer.areas[idx] == DT_TILECACHE_NULL_AREA) continue;
+			if (layer.areas[idx] == DT_TILECACHE_NULL_AREA)
+				continue;
 			
 			unsigned char sid = 0xff;
 			
@@ -303,7 +306,7 @@ dtStatus dtBuildTileCacheRegions(dtTileCacheAlloc* alloc,
 			
 			// Update area.
 			regs[ri].area++;
-			regs[ri].areaId = layer.areas[idx];
+			regs[ri].areaId = layer.areas[idx];//T2X不扩
 			
 			// Update neighbours
 			const int ymi = x+(y-1)*w;
@@ -781,7 +784,8 @@ dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc,
 				continue;
 			
 			cont.reg = ri;
-			cont.area = layer.areas[idx];
+			cont.area = layer.areas[idx];//T2
+			cont.obstacle = layer.obstacle[idx];
 			
 			if (!walkContour(layer, x, y, temp))
 			{
@@ -1545,6 +1549,7 @@ static dtStatus removeVertex(dtTileCachePolyMesh& mesh, const unsigned short rem
 			memcpy(p,p2,sizeof(unsigned short)*MAX_VERTS_PER_POLY);
 			memset(p+MAX_VERTS_PER_POLY,0xff,sizeof(unsigned short)*MAX_VERTS_PER_POLY);
 			mesh.areas[i] = mesh.areas[mesh.npolys-1];
+			mesh.obstacle[i] = mesh.obstacle[mesh.npolys-1];
 			mesh.npolys--;
 			--i;
 		}
@@ -1654,6 +1659,7 @@ static dtStatus removeVertex(dtTileCachePolyMesh& mesh, const unsigned short rem
 	
 	unsigned short polys[MAX_REM_EDGES*MAX_VERTS_PER_POLY];
 	unsigned char pareas[MAX_REM_EDGES];
+	unsigned int pobstacles[MAX_REM_EDGES];
 	
 	// Build initial polygons.
 	int npolys = 0;
@@ -1667,6 +1673,7 @@ static dtStatus removeVertex(dtTileCachePolyMesh& mesh, const unsigned short rem
 			polys[npolys*MAX_VERTS_PER_POLY+1] = hole[t[1]];
 			polys[npolys*MAX_VERTS_PER_POLY+2] = hole[t[2]];
 			pareas[npolys] = (unsigned char)harea[t[0]];
+			//pobstacles[npolys] = (unsigned int)h???[t[0]];/TT reuseableObstacle用不到
 			npolys++;
 		}
 	}
@@ -1710,6 +1717,7 @@ static dtStatus removeVertex(dtTileCachePolyMesh& mesh, const unsigned short rem
 				mergePolys(pa, pb, bestEa, bestEb);
 				memcpy(pb, &polys[(npolys-1)*MAX_VERTS_PER_POLY], sizeof(unsigned short)*MAX_VERTS_PER_POLY);
 				pareas[bestPb] = pareas[npolys-1];
+				//pobstacles[bestPb] = pobstacles[npolys-1];
 				npolys--;
 			}
 			else
@@ -1729,6 +1737,7 @@ static dtStatus removeVertex(dtTileCachePolyMesh& mesh, const unsigned short rem
 		for (int j = 0; j < MAX_VERTS_PER_POLY; ++j)
 			p[j] = polys[i*MAX_VERTS_PER_POLY+j];
 		mesh.areas[mesh.npolys] = pareas[i];
+		mesh.obstacle[mesh.npolys] = pobstacles[i];
 		mesh.npolys++;
 		if (mesh.npolys > maxTris)
 			return DT_FAILURE | DT_BUFFER_TOO_SMALL;
@@ -1776,6 +1785,9 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 	mesh.areas = (unsigned char*)alloc->alloc(sizeof(unsigned char)*maxTris);
 	if (!mesh.areas)
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
+	mesh.obstacle = (unsigned int*)alloc->alloc(sizeof(unsigned int)*maxTris);
+	if (!mesh.obstacle)
+		return DT_FAILURE | DT_OUT_OF_MEMORY;
 
 	mesh.flags = (unsigned short*)alloc->alloc(sizeof(unsigned short)*maxTris);
 	if (!mesh.flags)
@@ -1790,6 +1802,7 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 	memset(mesh.verts, 0, sizeof(unsigned short)*maxVertices*3);
 	memset(mesh.polys, 0xff, sizeof(unsigned short)*maxTris*MAX_VERTS_PER_POLY*2);
 	memset(mesh.areas, 0, sizeof(unsigned char)*maxTris);
+	memset(mesh.obstacle, 0, sizeof(unsigned int)*maxTris);
 	
 	unsigned short firstVert[VERTEX_BUCKET_COUNT2];
 	for (int i = 0; i < VERTEX_BUCKET_COUNT2; ++i)
@@ -1914,7 +1927,8 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 			unsigned short* q = &polys[j*MAX_VERTS_PER_POLY];
 			for (int k = 0; k < MAX_VERTS_PER_POLY; ++k)
 				p[k] = q[k];
-			mesh.areas[mesh.npolys] = cont.area;
+			mesh.areas[mesh.npolys] = cont.area;//T3
+			mesh.obstacle[mesh.npolys] = cont.obstacle;//T3
 			mesh.npolys++;
 			if (mesh.npolys > maxTris)
 				return DT_FAILURE | DT_BUFFER_TOO_SMALL;
@@ -1948,7 +1962,7 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 }
 
 dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-							const float* pos, const float radius, const float height, const unsigned char areaId)
+							const float* pos, const float radius, const float height, const unsigned char areaId, const unsigned int obRef)
 {
 	float bmin[3], bmax[3];
 	bmin[0] = pos[0] - radius;
@@ -1995,7 +2009,8 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const fl
 			const int y = layer.heights[x+z*w];
 			if (y < miny || y > maxy)
 				continue;
-			layer.areas[x+z*w] = areaId;
+			layer.areas[x+z*w] = areaId;//T1
+			layer.obstacle[x + z * w] = obRef; //T1
 		}
 	}
 
@@ -2003,7 +2018,7 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const fl
 }
 
 dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-					   const float* bmin, const float* bmax, const unsigned char areaId)
+					   const float* bmin, const float* bmax, const unsigned char areaId, const unsigned int obRef)
 {
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
@@ -2034,7 +2049,8 @@ dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float c
 			const int y = layer.heights[x+z*w];
 			if (y < miny || y > maxy)
 				continue;
-			layer.areas[x+z*w] = areaId;
+			layer.areas[x+z*w] = areaId;//T1
+			layer.obstacle[x + z * w] = obRef; //T1
 		}
 	}
 
@@ -2042,7 +2058,7 @@ dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float c
 }
 
 dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-					   const float* center, const float* halfExtents, const float* rotAux, const unsigned char areaId)
+					   const float* center, const float* halfExtents, const float* rotAux, const unsigned char areaId, const unsigned int obRef)
 {
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
@@ -2088,7 +2104,8 @@ dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float c
 			const int y = layer.heights[x+z*w];
 			if (y < miny || y > maxy)
 				continue;
-			layer.areas[x+z*w] = areaId;
+			layer.areas[x+z*w] = areaId; //T1
+			layer.obstacle[x+z*w] = obRef; //T1
 		}
 	}
 
@@ -2176,7 +2193,8 @@ dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompress
 	const int layerSize = dtAlign4(sizeof(dtTileCacheLayer));
 	const int headerSize = dtAlign4(sizeof(dtTileCacheLayerHeader));
 	const int gridSize = (int)compressedHeader->width * (int)compressedHeader->height;
-	const int bufferSize = layerSize + headerSize + gridSize*4;
+	//const int bufferSize = layerSize + headerSize + gridSize*4;
+	const int bufferSize = layerSize + headerSize + gridSize*4 + gridSize * sizeof(unsigned int);
 	
 	unsigned char* buffer = (unsigned char*)alloc->alloc(bufferSize);
 	if (!buffer)
@@ -2205,6 +2223,7 @@ dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompress
 	layer->areas = grids + gridSize;
 	layer->cons = grids + gridSize*2;
 	layer->regs = grids + gridSize*3;
+	layer->obstacle = (unsigned int*)(grids + gridSize * 4);
 	
 	*layerOut = layer;
 	

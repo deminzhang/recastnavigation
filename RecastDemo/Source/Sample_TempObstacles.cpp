@@ -212,6 +212,9 @@ struct MeshProcess : public dtTileCacheMeshProcess
 			{
 				polyFlags[i] = SAMPLE_POLYFLAGS_WALK | SAMPLE_POLYFLAGS_DOOR;
 			}
+			else {
+				polyFlags[i] = SAMPLE_POLYFLAGS_DISABLED | SAMPLE_POLYFLAGS_DOOR;
+			}
 		}
 
 		// Pass in off-mesh connections.
@@ -661,9 +664,21 @@ void drawObstacles(duDebugDraw* dd, const dtTileCache* tc)
 			col = duRGBA(255,192,0,192);
 		else if (ob->state == DT_OBSTACLE_REMOVING)
 			col = duRGBA(220,0,0,128);
-
-		duDebugDrawCylinder(dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], col);
-		duDebugDrawCylinderWire(dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duDarkenCol(col), 2);
+		switch (ob->type) {
+		case DT_OBSTACLE_CYLINDER:
+			duDebugDrawCylinder(dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2], col);
+			duDebugDrawCylinderWire(dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2], duDarkenCol(col), 2);
+			break;
+		case DT_OBSTACLE_BOX: // AABB
+			duDebugDrawBox(dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2], &col);
+			duDebugDrawBoxWire(dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2], duDarkenCol(col), 2);
+			break;
+		case DT_OBSTACLE_ORIENTED_BOX: // OBB
+			//duDebugDrawBox(dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2], &col);
+			duDebugDrawBoxWire(dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2], duDarkenCol(col), 2);
+			break;
+		}
+		//TEST »­×èµ²
 	}
 }
 
@@ -794,11 +809,18 @@ public:
 		
 		if (imguiButton("Remove All"))
 			m_sample->clearAllTempObstacles();
+
+		if (imguiCheck("Cylinder", m_sample->m_ObstacleType == DT_OBSTACLE_CYLINDER))
+			m_sample->m_ObstacleType = DT_OBSTACLE_CYLINDER;
+		if (imguiCheck("Box", m_sample->m_ObstacleType == DT_OBSTACLE_BOX))
+			m_sample->m_ObstacleType = DT_OBSTACLE_BOX;
+		if (imguiCheck("OrientedBox(*1.41)", m_sample->m_ObstacleType == DT_OBSTACLE_ORIENTED_BOX))
+			m_sample->m_ObstacleType = DT_OBSTACLE_ORIENTED_BOX;
 		
 		imguiSeparator();
 
 		imguiValue("Click LMB to create an obstacle.");
-		imguiValue("Shift+LMB to remove an obstacle.");
+		imguiValue("Click RMB or Shift+LMB to remove an obstacle.");
 	}
 	
 	virtual void handleClick(const float* s, const float* p, bool shift)
@@ -834,11 +856,12 @@ Sample_TempObstacles::Sample_TempObstacles() :
 	m_drawMode(DRAWMODE_NAVMESH),
 	m_maxTiles(0),
 	m_maxPolysPerTile(0),
-	m_tileSize(48)
+	m_tileSize(48),
+	m_ObstacleType(DT_OBSTACLE_CYLINDER)
 {
 	resetCommonSettings();
 	
-	m_talloc = new LinearAllocator(32000);
+	m_talloc = new LinearAllocator(1024*1024);
 	m_tcomp = new FastLZCompressor;
 	m_tmproc = new MeshProcess;
 	
@@ -928,7 +951,10 @@ void Sample_TempObstacles::handleSettings()
 	{
 		dtFreeNavMesh(m_navMesh);
 		dtFreeTileCache(m_tileCache);
+		TimeVal startTime = getPerfTime();
 		loadAll("all_tiles_tilecache.bin");
+		TimeVal endTime = getPerfTime();
+		float dt = getPerfTimeUsec(endTime - startTime) / 1000.0f;
 		m_navQuery->init(m_navMesh, 2048);
 	}
 
@@ -1161,6 +1187,7 @@ void Sample_TempObstacles::handleMeshChanged(class InputGeom* geom)
 	initToolStates(this);
 }
 
+static unsigned int a = 1;
 void Sample_TempObstacles::addTempObstacle(const float* pos)
 {
 	if (!m_tileCache)
@@ -1168,7 +1195,43 @@ void Sample_TempObstacles::addTempObstacle(const float* pos)
 	float p[3];
 	dtVcopy(p, pos);
 	p[1] -= 0.5f;
-	m_tileCache->addObstacle(p, 1.0f, 2.0f, 0);
+	float p2[3];
+	float boxW = 2.0f;
+	dtObstacleRef ref = 0;
+	switch (m_ObstacleType)
+	{
+	case DT_OBSTACLE_CYLINDER:
+		//m_tileCache->addObstacle(p, 1.0f, 2.0f, &ref);
+		//p[0] = -337.5f;
+		//p[1] = 15.92f - 10.0f / 2;
+		//p[2] = 345.1332f;
+		//m_tileCache->addReusableObstacle(m_navMesh, p, 5.0f, 10.0f, &ref, SAMPLE_POLYAREA_DOOR);
+		m_tileCache->addReusableObstacle(m_navMesh, p, 1.0f, 2.0f, &ref, SAMPLE_POLYAREA_DOOR);
+		break;
+	case DT_OBSTACLE_BOX:
+		//p[0] -= 0.5f;
+		//p[1] -= 0.5f;
+		//p[2] -= 0.5f;
+		//p2[0] = p[0] + boxW;
+		//p2[1] = p[1] + boxW;
+		//p2[2] = p[2] + boxW;
+		//m_tileCache->addBoxObstacle(p, p2, &ref);
+		//m_tileCache->addReusableBoxObstacle(m_navMesh, p, p2, &ref, SAMPLE_POLYAREA_DOOR);
+		//break;
+	case DT_OBSTACLE_ORIENTED_BOX:
+		//p[0] = -336.98f;
+		//p[1] = 17.79f;
+		//p[2] = 321.3;
+		p2[0] = 1;
+		p2[1] = 1;
+		p2[2] = 1;
+		//m_tileCache->addBoxObstacle(p, p2, 0, &ref);
+		m_tileCache->addReusableBoxObstacle(m_navMesh, p, p2, 0, &ref, SAMPLE_POLYAREA_DOOR);
+		break;
+	}
+	//TEST
+	m_tileCache->toggleObstacle(m_navMesh, ref, true);
+	//m_tileCache->toggleObstacle(m_navMesh, ref, false);
 }
 
 void Sample_TempObstacles::removeTempObstacle(const float* sp, const float* sq)
@@ -1177,6 +1240,7 @@ void Sample_TempObstacles::removeTempObstacle(const float* sp, const float* sq)
 		return;
 	dtObstacleRef ref = hitTestObstacle(m_tileCache, sp, sq);
 	m_tileCache->removeObstacle(ref);
+	//TEST
 }
 
 void Sample_TempObstacles::clearAllTempObstacles()
@@ -1189,6 +1253,8 @@ void Sample_TempObstacles::clearAllTempObstacles()
 		if (ob->state == DT_OBSTACLE_EMPTY) continue;
 		m_tileCache->removeObstacle(m_tileCache->getObstacleRef(ob));
 	}
+	//TEST
+	//m_tileCache->updateEx(0, m_navMesh);
 }
 
 bool Sample_TempObstacles::handleBuild()

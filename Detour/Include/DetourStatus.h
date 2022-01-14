@@ -36,6 +36,7 @@ static const unsigned int DT_BUFFER_TOO_SMALL = 1 << 4;	// Result buffer for the
 static const unsigned int DT_OUT_OF_NODES = 1 << 5;		// Query ran out of nodes during search.
 static const unsigned int DT_PARTIAL_RESULT = 1 << 6;	// Query did not reach the end location, returning best guess. 
 static const unsigned int DT_ALREADY_OCCUPIED = 1 << 7;	// A tile has already been assigned to the given x,y coordinate
+static const unsigned int DT_OBSTACLE_NULL_POLYS = 1 << 8;	//未收集到属于该ob的poly
 
 
 // Returns true of status is success.
