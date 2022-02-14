@@ -62,6 +62,8 @@ protected:
 	float m_tileSize;
 public:
 	enum ObstacleType m_ObstacleType;
+	bool m_ObstacleMode;
+	bool m_ObstacleDrawMesh;
 
 public:
 	Sample_TempObstacles();
@@ -70,6 +72,7 @@ public:
 	virtual void handleSettings();
 	virtual void handleTools();
 	virtual void handleDebugMode();
+	virtual void drawObstacles(duDebugDraw* dd, const dtTileCache* tc);
 	virtual void handleRender();
 	virtual void handleRenderOverlay(double* proj, double* model, int* view);
 	virtual void handleMeshChanged(class InputGeom* geom);

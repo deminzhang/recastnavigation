@@ -183,7 +183,29 @@ void Sample::resetCommonSettings()
 	m_detailSampleDist = 6.0f;
 	m_detailSampleMaxError = 1.0f;
 	m_partitionType = SAMPLE_PARTITION_WATERSHED;
+	//Ç°¶ËÄ¬ÈÏ
+	if (true) {
+		//Rasterization
+		m_cellSize = 0.3f;
+		m_cellHeight = 0.2f;
+		//Agent
+		m_agentRadius = 0.5f;
+		m_agentHeight = 2.0f;
+		m_agentMaxClimb = 0.5f;
+		m_agentMaxSlope = 45.0f;
+		m_agentMaxSpeed = 3.5f;
+		//Region
+		m_regionMinSize = 2;
+		m_regionMergeSize = 20;
+		//Polygonization
+		m_edgeMaxLen = 12.0f;
+		m_edgeMaxError = 1.3f;
+		m_vertsPerPoly = 6.0f;
+		//Detail Mesh
+		m_detailSampleDist = 6.0f;
+		m_detailSampleMaxError = 1.0f;
 
+	}
 }
 
 void Sample::handleCommonSettings()
